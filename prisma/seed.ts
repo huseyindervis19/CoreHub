@@ -43,7 +43,7 @@ async function main() {
       { name: 'create_language', endpoint: '/languages/create' },
       { name: 'update_language', endpoint: '/languages/update' },
       { name: 'delete_language', endpoint: '/languages/delete' },
-      { name: 'view_language', endpoint: '/languages' },
+      { name: 'view_languages', endpoint: '/languages' },
     ],
     skipDuplicates: true,
   });
