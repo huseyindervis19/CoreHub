@@ -6,8 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // ---------------- Languages ----------------
-  const languages = await prisma.language.createMany({
+  await prisma.language.createMany({
     data: [
       { code: 'en', name: 'English', isDefault: true },
       { code: 'fr', name: 'French', isDefault: false },
@@ -16,21 +15,18 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ---------------- Roles ----------------
-  const roles = await prisma.role.createMany({
+  await prisma.role.createMany({
     data: [
+      { name: 'developer', description: 'Developer with all access', isDeveloper: true },
       { name: 'admin', description: 'Administrator', isDeveloper: false },
       { name: 'manager', description: 'Manager', isDeveloper: false },
-      { name: 'developer', description: 'Developer with all access', isDeveloper: true },
     ],
     skipDuplicates: true,
   });
 
-  // Fetch roles to get their IDs
   const roleRecords = await prisma.role.findMany();
 
-  // ---------------- Permissions ----------------
-  const permissions = await prisma.permission.createMany({
+  await prisma.permission.createMany({
     data: [
       { name: 'create_user', endpoint: '/users/create' },
       { name: 'update_user', endpoint: '/users/update' },
@@ -44,19 +40,25 @@ async function main() {
       { name: 'update_language', endpoint: '/languages/update' },
       { name: 'delete_language', endpoint: '/languages/delete' },
       { name: 'view_languages', endpoint: '/languages' },
+      { name: 'view_language_keys', endpoint: 'view/language-keys' },
+      { name: 'edit_language_keys', endpoint: 'edit/language-keys' },
+      { name: 'products', endpoint: '/products' },
+      { name: 'product_create', endpoint: '/product/create' },
+      { name: 'product_update', endpoint: '/product/update' },
+      { name: 'product_delete', endpoint: '/product/delete' },
+      { name: 'categories', endpoint: '/categories' },
+      { name: 'category_create', endpoint: '/category/create' },
+      { name: 'category_update', endpoint: '/category/update' },
+      { name: 'category_delete', endpoint: '/category/delete' },
+      { name: 'role_permissions', endpoint: '/role/permissions' },
     ],
     skipDuplicates: true,
   });
 
-  // Fetch permissions to get their IDs
   const permissionRecords = await prisma.permission.findMany();
 
-  // ---------------- RolePermissions ----------------
   for (const role of roleRecords) {
-    const rolePerms =
-      role.isDeveloper
-        ? permissionRecords // developer gets all permissions
-        : permissionRecords.filter((p) => !p.name.startsWith('create_language')); // normal roles can't manage languages
+    const rolePerms = permissionRecords;
 
     const data = rolePerms.map((p) => ({
       roleId: role.id,
@@ -69,27 +71,23 @@ async function main() {
     });
   }
 
-  // ---------------- Users ----------------
   const passwordHash = await bcrypt.hash('123', 10);
 
-  const users = await prisma.user.createMany({
+  await prisma.user.createMany({
     data: [
-      { username: 'halim', email: 'halim@gmail.com', password: passwordHash, status: 'active', languageId: 1 },
+      { username: 'dev', email: 'dev@gmail.com', password: passwordHash, status: 'active', languageId: 1 },
       { username: 'admin', email: 'admin@gmail.com', password: passwordHash, status: 'active', languageId: 1 },
       { username: 'manager', email: 'manager@gmail.com', password: passwordHash, status: 'active', languageId: 2 },
-      { username: 'dev', email: 'dev@gmail.com', password: passwordHash, status: 'active', languageId: 1 },
     ],
     skipDuplicates: true,
   });
 
   const userRecords = await prisma.user.findMany();
 
-  // ---------------- UserRoles ----------------
   const userRoleMapping = [
-    { username: 'halim', roleName: 'developer' },
+    { username: 'dev', roleName: 'developer' },
     { username: 'admin', roleName: 'admin' },
     { username: 'manager', roleName: 'manager' },
-    { username: 'dev', roleName: 'developer' },
   ];
 
   for (const mapping of userRoleMapping) {
@@ -103,32 +101,40 @@ async function main() {
     }
   }
 
-  // ---------------- TranslationKeys ----------------
   const translationKeys = await prisma.translationKey.createMany({
     data: [
-      { key: 'welcome', description: 'Welcome message' },
-      { key: 'login', description: 'Login button text' },
-      { key: 'logout', description: 'Logout button text' },
+      { key: 'categories', description: 'Categories' },
+      { key: 'products', description: 'Products' },
+      { key: 'users', description: 'Users' },
+      { key: 'create', description: 'Create' },
+      { key: 'add', description: 'Add' },
+      { key: 'save', description: 'Save' },
+      { key: 'update', description: 'Update' },
+      { key: 'edit', description: 'Edit' },
+      { key: 'cancel', description: 'Cancel' },
+      { key: 'close', description: 'Close' },
+      { key: 'delete', description: 'Delete' },
+      { key: 'remove', description: 'Remove' },
+      { key: 'view', description: 'View' },
+      { key: 'role_permissions', description: 'Role Permissions' },
     ],
     skipDuplicates: true,
   });
 
   const translationKeyRecords = await prisma.translationKey.findMany();
 
-  // ---------------- Translations ----------------
   for (const lang of await prisma.language.findMany()) {
     for (const tkey of translationKeyRecords) {
       await prisma.translation.create({
         data: {
           languageId: lang.id,
           translationKeyId: tkey.id,
-          value: `${tkey.key}_${lang.code}`, // simple dummy translation
+          value: `${tkey.key}_${lang.code}`,
         },
       });
     }
   }
 
-  // ---------------- DynamicTranslations ----------------
   await prisma.dynamicTranslation.createMany({
     data: [
       { tableName: 'Role', rowId: 1, field: 'name', languageId: 1, content: 'Administrator_EN' },
@@ -138,7 +144,7 @@ async function main() {
     skipDuplicates: true,
   });
 
-  console.log('✅ Seeding completed!');
+  console.log('Seeding completed!');
 }
 
 main()
