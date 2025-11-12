@@ -29,6 +29,41 @@ export class TranslationService {
     return wrapResponse(data, meta, links);
   }
 
+  // ---------------- READ BY LANGUAGE ----------------
+  async findByLanguage(languageId: number): Promise<any> {
+    const translations = await this.prisma.translation.findMany({
+      where: { languageId },
+      include: {
+        TranslationKey: true,
+        Language: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    if (!translations.length) {
+      throw new NotFoundException(`No translations found for language ID ${languageId}`);
+    }
+
+    const language = {
+      id: translations[0].Language.id,
+      code: translations[0].Language.code,
+      name: translations[0].Language.name,
+    };
+
+    const formattedTranslations = translations.reduce((acc, t) => {
+      acc[t.TranslationKey.key] = t.value;
+      return acc;
+    }, {});
+
+    return {
+      language,
+      translations: formattedTranslations,
+      message: 'successful',
+      statusCode: 200,
+    };
+  }
+
+
   // ---------------- READ ONE ----------------
   async findOne(id: number): Promise<ApiResponse<Translation>> {
     const translation = await this.prisma.translation.findUnique({

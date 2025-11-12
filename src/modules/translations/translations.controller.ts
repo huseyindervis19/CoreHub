@@ -13,7 +13,7 @@ import { UpdateTranslationDto } from './dto/update-translation.dto';
 
 @Controller('translations')
 export class TranslationController {
-  constructor(private readonly translationService: TranslationService) {}
+  constructor(private readonly translationService: TranslationService) { }
 
   // ---------------- CREATE ----------------
   @Post()
@@ -25,6 +25,12 @@ export class TranslationController {
   @Get()
   async findAll() {
     return this.translationService.findAll();
+  }
+
+  // ---------------- READ BY LANGUAGE ----------------
+  @Get('language/:languageId')
+  async findByLanguage(@Param('languageId') languageId: string) {
+    return this.translationService.findByLanguage(Number(languageId));
   }
 
   // ---------------- READ ONE ----------------
