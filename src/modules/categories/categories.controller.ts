@@ -22,7 +22,7 @@ export class CategoryController {
   }
 
   // ---------------- READ ALL ----------------
-  @Get()
+  @Get('all')
   async findAll() {
     return this.categoryService.findAll();
   }
@@ -40,7 +40,7 @@ export class CategoryController {
   }
 
   // ---------------- UPDATE FULL ----------------
-  @Patch(':id/full')
+  @Patch(':id')
   @UseInterceptors(FileInterceptor('image_url'))
   async update(
     @Param('id') id: string,
