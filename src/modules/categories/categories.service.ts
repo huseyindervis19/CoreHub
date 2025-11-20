@@ -21,15 +21,14 @@ export class CategoryService {
   }
 
   // ---------------- CREATE ----------------
-  async create(
-    dto: CreateCategoryDto,
-    file?: Express.Multer.File,
-  ): Promise<ApiResponse<Category & { translations: Record<string, { name: string; description: string; image_url?: string }> }>> {
-    const imageUrl = file ? await this.saveUploadedFile(file) : undefined;
+  async create(dto: CreateCategoryDto, file?: Express.Multer.File): Promise<ApiResponse<Category & { translations: Record<string, { name: string; description: string }> }>> {
+    const imageUrl = file ? await this.saveUploadedFile(file) : dto.imageUrl;
 
     const category = await this.prisma.$transaction(async tx => {
-      const cat = await tx.category.create({ data: {} });
-      await this.createDynamicTranslations(cat.id, dto.name, dto.description, imageUrl);
+      const cat = await tx.category.create({
+        data: { imageUrl, isFeatured: dto.isFeatured ?? false },
+      });
+      await this.createDynamicTranslations(cat.id, dto.name, dto.description);
       return cat;
     });
 
@@ -37,18 +36,8 @@ export class CategoryService {
     return wrapResponse(formatSingle({ ...category, translations }, this.basePath));
   }
 
-  // ---------------- READ ALL ----------------
-  async findAll(): Promise<ApiResponse<(Category & { translations: Record<string, { name: string; description: string; image_url?: string }> })[]>> {
-    const categories = await this.prisma.category.findMany();
-    const dataWithTranslations = await Promise.all(
-      categories.map(async cat => ({ ...cat, translations: await this.getCategoryTranslations(cat.id) }))
-    );
-    const { data, meta, links } = formatList(dataWithTranslations, this.basePath);
-    return wrapResponse(data, meta, links);
-  }
-
   // ---------------- READ ALL BY LANGUAGE ----------------
-  async findAllByLanguage(langCode: string): Promise<ApiResponse<(Category & { translated: { name: string; description: string; image_url?: string } })[]>> {
+  async findAllByLanguage(langCode: string): Promise<ApiResponse<(Category & { translated: { name: string; description: string } })[]>> {
     const language = await this.prisma.language.findUnique({ where: { code: langCode } });
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
@@ -62,7 +51,6 @@ export class CategoryService {
         const translated = {
           name: translations.find(t => t.field === 'name')?.content || '',
           description: translations.find(t => t.field === 'description')?.content || '',
-          image_url: translations.find(t => t.field === 'image_url')?.content || '',
         };
 
         return { ...category, translated };
@@ -74,36 +62,75 @@ export class CategoryService {
   }
 
   // ---------------- READ ONE ----------------
-  async findOne(categoryId: number): Promise<ApiResponse<Category & { translations: Record<string, { name: string; description: string; image_url?: string }> }>> {
-    const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
-    if (!category) throw new NotFoundException(`Category ${categoryId} not found`);
-
-    const translations = await this.getCategoryTranslations(category.id);
-    return wrapResponse(formatSingle({ ...category, translations }, this.basePath));
-  }
-
-  // ---------------- UPDATE FULL ----------------
-  async update(
-    categoryId: number,
-    langCode: string,
-    dto: UpdateCategoryDto,
-    file?: Express.Multer.File,
-  ): Promise<ApiResponse<Category & { translations: Record<string, { name: string; description: string; image_url?: string }> }>> {
+  async findOne(categoryId: number, langCode: string): Promise<ApiResponse<Category & { translated: { name: string; description: string } }>> {
     const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) throw new NotFoundException(`Category ${categoryId} not found`);
 
     const language = await this.prisma.language.findUnique({ where: { code: langCode } });
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
-    let imageUrl: string | undefined;
+    const translations = await this.prisma.dynamicTranslation.findMany({
+      where: { tableName: 'Category', rowId: category.id, languageId: language.id },
+    });
+
+    const translated = {
+      name: translations.find(t => t.field === 'name')?.content || '',
+      description: translations.find(t => t.field === 'description')?.content || '',
+    };
+
+    return wrapResponse(formatSingle({ ...category, translated }, this.basePath));
+  }
+
+  // ---------------- READ 5 FOR LANDING ----------------
+  async findLandingPageCategories(langCode: string): Promise<ApiResponse<(Category & { translated: { name: string; description: string } })[]>> {
+    const language = await this.prisma.language.findUnique({ where: { code: langCode } });
+    if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
+
+    const featured = await this.prisma.category.findMany({ where: { isFeatured: true } });
+    const notFeatured = await this.prisma.category.findMany({ where: { isFeatured: false } });
+
+    const selected = [...featured, ...notFeatured].slice(0, 5);
+
+    const dataWithTranslation = await Promise.all(
+      selected.map(async category => {
+        const translations = await this.prisma.dynamicTranslation.findMany({
+          where: { tableName: 'Category', rowId: category.id, languageId: language.id },
+        });
+
+        const translated = {
+          name: translations.find(t => t.field === 'name')?.content || '',
+          description: translations.find(t => t.field === 'description')?.content || '',
+        };
+
+        return { ...category, translated };
+      })
+    );
+
+    const { data, meta, links } = formatList(dataWithTranslation, this.basePath);
+    return wrapResponse(data, meta, links);
+  }
+
+  // ---------------- UPDATE ----------------
+  async update(categoryId: number, langCode: string, dto: UpdateCategoryDto, file?: Express.Multer.File): Promise<ApiResponse<Category & { translations: Record<string, { name: string; description: string }> }>> {
+    const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) throw new NotFoundException(`Category ${categoryId} not found`);
+
+    const language = await this.prisma.language.findUnique({ where: { code: langCode } });
+    if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
+
+    let imageUrl = category.imageUrl;
     if (file) {
+      if (category.imageUrl) await this.deleteImage(category.imageUrl);
       imageUrl = await this.saveUploadedFile(file);
-      await this.prisma.dynamicTranslation.upsert({
-        where: { tableName_rowId_field_languageId: { tableName: 'Category', rowId: categoryId, field: 'image_url', languageId: language.id } },
-        update: { content: imageUrl },
-        create: { tableName: 'Category', rowId: categoryId, field: 'image_url', languageId: language.id, content: imageUrl },
-      });
     }
+
+    const updatedCategory = await this.prisma.category.update({
+      where: { id: categoryId },
+      data: {
+        imageUrl,
+        isFeatured: dto.isFeatured ?? category.isFeatured,
+      },
+    });
 
     if (dto.name !== undefined) {
       await this.prisma.dynamicTranslation.upsert({
@@ -122,7 +149,7 @@ export class CategoryService {
     }
 
     const translations = await this.getCategoryTranslations(categoryId);
-    return wrapResponse(formatSingle({ ...category, translations }, this.basePath));
+    return wrapResponse(formatSingle({ ...updatedCategory, translations }, this.basePath));
   }
 
   // ---------------- DELETE ----------------
@@ -130,18 +157,14 @@ export class CategoryService {
     const category = await this.prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) throw new NotFoundException(`Category ${categoryId} not found`);
 
-    const translations = await this.prisma.dynamicTranslation.findMany({ where: { tableName: 'Category', rowId: categoryId } });
-    for (const t of translations.filter(t => t.field === 'image_url')) await this.deleteImage(t.content);
-
+    if (category.imageUrl) await this.deleteImage(category.imageUrl);
     await this.prisma.dynamicTranslation.deleteMany({ where: { tableName: 'Category', rowId: categoryId } });
     await this.prisma.category.delete({ where: { id: categoryId } });
 
     return wrapResponse(formatSingle(category, this.basePath));
   }
 
-  // ---------------- HELPER--------------------
-
-  // ---------------- Save Uploaded File ----------------
+  // ---------------- HELPERS ----------------
   private async saveUploadedFile(file: Express.Multer.File): Promise<string> {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const fileExt = extname(file.originalname);
@@ -151,71 +174,39 @@ export class CategoryService {
     return `/uploads/category/${filename}`;
   }
 
-  // ---------------- Delete Image ----------------
   private async deleteImage(imageUrl?: string | null): Promise<void> {
     if (!imageUrl) return;
     const imagePath = path.join(process.cwd(), imageUrl);
     try {
       await fs.access(imagePath);
       await fs.unlink(imagePath);
-    } catch {}
+    } catch { }
   }
 
-  // ---------------- Create Dynamic Translations ----------------
-  private async createDynamicTranslations(
-    categoryId: number,
-    name: string,
-    description?: string,
-    imageUrl?: string,
-  ) {
+  private async createDynamicTranslations(categoryId: number, name: string, description?: string) {
     const languages = await this.prisma.language.findMany();
     if (!languages.length) return;
 
     const translationsData = languages.flatMap(lang => [
-      {
-        tableName: 'Category',
-        rowId: categoryId,
-        field: 'name',
-        languageId: lang.id,
-        content: name,
-      },
-      {
-        tableName: 'Category',
-        rowId: categoryId,
-        field: 'description',
-        languageId: lang.id,
-        content: description || '',
-      },
-      {
-        tableName: 'Category',
-        rowId: categoryId,
-        field: 'image_url',
-        languageId: lang.id,
-        content: imageUrl || '',
-      },
+      { tableName: 'Category', rowId: categoryId, field: 'name', languageId: lang.id, content: name },
+      { tableName: 'Category', rowId: categoryId, field: 'description', languageId: lang.id, content: description || '' },
     ]);
 
-    await this.prisma.dynamicTranslation.createMany({
-      data: translationsData,
-      skipDuplicates: true,
-    });
+    await this.prisma.dynamicTranslation.createMany({ data: translationsData, skipDuplicates: true });
   }
 
-  // ---------------- Get Category Translations ----------------
   private async getCategoryTranslations(categoryId: number) {
     const translations = await this.prisma.dynamicTranslation.findMany({
       where: { tableName: 'Category', rowId: categoryId },
       include: { Language: true },
     });
 
-    const grouped: Record<string, { name: string; description: string; image_url?: string }> = {};
-
+    const grouped: Record<string, { name: string; description: string }> = {};
     for (const t of translations) {
       const langCode = t.Language.code;
-      if (!grouped[langCode]) grouped[langCode] = { name: '', description: '', image_url: '' };
+      if (!grouped[langCode]) grouped[langCode] = { name: '', description: '' };
       if (t.field === 'name') grouped[langCode].name = t.content;
       if (t.field === 'description') grouped[langCode].description = t.content;
-      if (t.field === 'image_url') grouped[langCode].image_url = t.content;
     }
 
     return grouped;
