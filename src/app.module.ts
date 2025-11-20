@@ -15,6 +15,7 @@ import { UserRolesModule } from './modules/user-roles/user-roles.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CategoryModule } from './modules/categories/categories.module';
 import { ProductModule } from './modules/products/products.module';
+import { ProductImageModule } from './modules/product-images/product-images.module';
 
 @Module({
   imports: [
@@ -31,7 +32,8 @@ import { ProductModule } from './modules/products/products.module';
     UserRolesModule,
     AuthModule,
     CategoryModule,
-    ProductModule
+    ProductModule,
+    ProductImageModule
   ],
   controllers: [AppController],
   providers: [AppService],
