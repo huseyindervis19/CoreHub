@@ -1,4 +1,5 @@
-import { IsDefined, IsNotEmpty, IsString, MaxLength, IsOptional } from 'class-validator';
+import { IsDefined, IsNotEmpty, IsString, MaxLength, IsOptional, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCategoryDto {
   @IsDefined({ message: 'Name is required' })
@@ -13,5 +14,10 @@ export class CreateCategoryDto {
 
   @IsOptional()
   @IsString({ message: 'Image URL must be a string' })
-  image_url?: string;
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'isFeatured must be a boolean' })
+@Transform(({ obj }) => obj.isFeatured === 'true')
+  isFeatured?: boolean;
 }

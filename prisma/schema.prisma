@@ -151,9 +151,12 @@ model UserRole {
 
 model Category {
   id        Int     @id @default(autoincrement())
+  
+  imageUrl  String?
+  isFeatured Boolean  @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   Products  Product[]
 }
 
