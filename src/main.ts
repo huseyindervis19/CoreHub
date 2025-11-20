@@ -17,10 +17,13 @@ async function bootstrap() {
   // Global Validation Pipe for DTO validation
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, 
-      forbidNonWhitelisted: true, 
-      transform: true, 
-      stopAtFirstError: true, 
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      stopAtFirstError: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
