@@ -5,7 +5,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService) { }
 
   // ---------------- CREATE ----------------
   @Post()
@@ -16,24 +16,24 @@ export class ProductController {
     return this.productService.create(dto, lang);
   }
 
-  // ---------------- READ ALL ----------------
-  @Get('all')
-  async findAll() {
-    return this.productService.findAll();
-  }
-
   // ---------------- READ ALL BY LANGUAGE ----------------
   @Get()
   async findAllByLanguage(@Query('lang') lang: string) {
     return this.productService.findAllByLanguage(lang);
   }
 
-  // ---------------- READ ONE ----------------
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.productService.findOne(Number(id));
+  // ---------------- READ 5 FOR LANDING PRODUCTS ----------------
+  @Get('landing')
+  async landingProducts(@Query('lang') lang: string) {
+    return this.productService.findLandingPageProducts(lang);
   }
 
+  // ---------------- READ ONE ----------------
+  @Get(':id')
+  async findOne(@Param('id') id: string, @Query('lang') lang: string) {
+    return this.productService.findOne(Number(id), lang);
+  }
+  
   // ---------------- UPDATE ----------------
   @Patch(':id')
   async update(

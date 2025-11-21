@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Product } from '@prisma/client';
 import { wrapResponse, formatSingle, formatList, ApiResponse } from '../../common';
@@ -31,22 +31,30 @@ export class ProductService {
     return wrapResponse(formatSingle({ ...product, translations }, this.basePath));
   }
 
-  // ---------------- READ ALL ----------------
-  async findAll(): Promise<ApiResponse<(Product & { translations: Record<string, { name: string; slug?: string; description?: string }> })[]>> {
-    const products = await this.prisma.product.findMany();
-    const dataWithTranslations = await Promise.all(
-      products.map(async p => ({ ...p, translations: await this.getProductTranslations(p.id) }))
-    );
-    const { data, meta, links } = formatList(dataWithTranslations, this.basePath);
-    return wrapResponse(data, meta, links);
-  }
-
   // ---------------- READ ALL BY LANGUAGE ----------------
-  async findAllByLanguage(langCode: string): Promise<ApiResponse<(Product & { translated: { name: string; slug?: string; description?: string } })[]>> {
+  // ---------------- READ ALL BY LANGUAGE ----------------
+  async findAllByLanguage(
+    langCode: string
+  ): Promise<ApiResponse<(Product & { translated: { name: string; slug?: string; description?: string }; mainImage?: string })[]>> {
     const language = await this.prisma.language.findUnique({ where: { code: langCode } });
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
-    const products = await this.prisma.product.findMany();
+    const products = await this.prisma.product.findMany({
+      select: {
+        id: true,
+        categoryId: true,
+        stockQuantity: true,
+        isActive: true,
+        isFeatured: true,
+        createdAt: true,
+        updatedAt: true,
+        Images: {
+          where: { isMain: true },
+          select: { url: true },
+          take: 1,
+        },
+      },
+    });
 
     const dataWithTranslation = await Promise.all(
       products.map(async p => {
@@ -61,6 +69,7 @@ export class ProductService {
             slug: translations.find(t => t.field === 'slug')?.content || '',
             description: translations.find(t => t.field === 'description')?.content || '',
           },
+          mainImage: p.Images[0]?.url ?? undefined,
         };
       })
     );
@@ -116,12 +125,111 @@ export class ProductService {
   }
 
   // ---------------- READ ONE ----------------
-  async findOne(productId: number): Promise<ApiResponse<Product & { translations: Record<string, { name: string; slug?: string; description?: string }> }>> {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+  async findOne(
+    productId: number,
+    langCode: string
+  ): Promise<ApiResponse<Product & {
+    translated: { name: string; slug?: string; description?: string };
+    images: string[];
+  }>> {
+
+    if (!productId) throw new BadRequestException("Product ID is required");
+
+    const language = await this.prisma.language.findUnique({
+      where: { code: langCode }
+    });
+
+    if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
+
+    // -------- Fetch product with ALL images --------
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        categoryId: true,
+        stockQuantity: true,
+        isActive: true,
+        isFeatured: true,
+        createdAt: true,
+        updatedAt: true,
+        Images: {
+          select: { url: true, isMain: true },
+          orderBy: { isMain: 'desc' }, 
+        }
+      }
+    });
+
     if (!product) throw new NotFoundException(`Product ${productId} not found`);
 
-    const translations = await this.getProductTranslations(product.id);
-    return wrapResponse(formatSingle({ ...product, translations }, this.basePath));
+    // -------- Fetch translations --------
+    const translations = await this.prisma.dynamicTranslation.findMany({
+      where: {
+        tableName: 'Product',
+        rowId: product.id,
+        languageId: language.id
+      }
+    });
+
+    const translated = {
+      name: translations.find(t => t.field === "name")?.content || "",
+      slug: translations.find(t => t.field === "slug")?.content || "",
+      description: translations.find(t => t.field === "description")?.content || ""
+    };
+
+    // -------- Response --------
+    return wrapResponse(
+      formatSingle(
+        {
+          ...product,
+          translated,
+          images: product.Images.map(img => img.url),  // ALL IMAGES
+        },
+        this.basePath
+      )
+    );
+  }
+
+  // ---------------- READ 5 FOR LANDING PRODUCTS ----------------
+  async findLandingPageProducts(
+    langCode: string
+  ): Promise<ApiResponse<(Product & { translated: { name: string; slug?: string; description?: string }; mainImage?: string })[]>> {
+    const language = await this.prisma.language.findUnique({ where: { code: langCode } });
+    if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
+
+    const products = await this.prisma.product.findMany({
+      orderBy: [
+        { isFeatured: 'desc' },
+        { id: 'asc' }
+      ],
+      take: 5,
+      include: {
+        Images: {
+          where: { isMain: true },
+          take: 1,
+        },
+      },
+    });
+
+    const dataWithTranslation = await Promise.all(
+      products.map(async (p) => {
+        const translations = await this.prisma.dynamicTranslation.findMany({
+          where: { tableName: 'Product', rowId: p.id, languageId: language.id },
+        });
+
+        return {
+          ...p,
+          translated: {
+            name: translations.find(t => t.field === 'name')?.content || '',
+            slug: translations.find(t => t.field === 'slug')?.content || '',
+            description: translations.find(t => t.field === 'description')?.content || '',
+          },
+          mainImage: p.Images[0]?.url ?? undefined,
+        };
+      })
+    );
+
+    const { data, meta, links } = formatList(dataWithTranslation, this.basePath);
+    return wrapResponse(data, meta, links);
   }
 
   // ---------------- UPDATE ----------------
