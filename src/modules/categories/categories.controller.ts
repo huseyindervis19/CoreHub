@@ -1,12 +1,13 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UploadedFile, UseInterceptors, Query } from '@nestjs/common';
 import { CategoryService } from './categories.service';
+import { ProductService } from '../products/products.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('categories')
 export class CategoryController {
-  constructor(private readonly categoryService: CategoryService) {}
+  constructor(private readonly categoryService: CategoryService, private readonly productService: ProductService,) { }
 
   @Post()
   @UseInterceptors(FileInterceptor('imageUrl'))
@@ -18,12 +19,20 @@ export class CategoryController {
   async findAllByLanguage(@Query('lang') lang: string) {
     return this.categoryService.findAllByLanguage(lang);
   }
-  
+
   @Get('landing')
   async landingCategories(@Query('lang') lang: string) {
     return this.categoryService.findLandingPageCategories(lang);
   }
-  
+
+  @Get(':id/products')
+  async getProductsByCategory(
+    @Param('id') id: string,
+    @Query('lang') lang: string
+  ) {
+    return this.productService.findByCategory(Number(id), lang);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Query('lang') lang: string) {
     return this.categoryService.findOne(Number(id), lang);

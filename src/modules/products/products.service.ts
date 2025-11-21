@@ -69,6 +69,52 @@ export class ProductService {
     return wrapResponse(data, meta, links);
   }
 
+  // ---------------- READ BY CATEGORY ----------------
+  async findByCategory(
+    categoryId: number,
+    langCode: string
+  ): Promise<ApiResponse<(Product & { translated: { name: string; slug?: string; description?: string }, mainImage?: string })[]>> {
+    const language = await this.prisma.language.findUnique({ where: { code: langCode } });
+    if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
+
+    const products = await this.prisma.product.findMany({
+      where: { categoryId },
+      select: {
+        id: true,
+        categoryId: true,
+        stockQuantity: true,
+        isActive: true,
+        isFeatured: true,
+        createdAt: true,
+        updatedAt: true,
+        Images: {
+          where: { isMain: true },
+          select: { url: true }
+        },
+      },
+    });
+
+    const dataWithTranslation = await Promise.all(
+      products.map(async p => {
+        const translations = await this.prisma.dynamicTranslation.findMany({
+          where: { tableName: 'Product', rowId: p.id, languageId: language.id },
+        });
+
+        return {
+          ...p,
+          translated: {
+            name: translations.find(t => t.field === 'name')?.content || '',
+            slug: translations.find(t => t.field === 'slug')?.content || '',
+            description: translations.find(t => t.field === 'description')?.content || '',
+          },
+        };
+      })
+    );
+
+    const { data, meta, links } = formatList(dataWithTranslation, this.basePath);
+    return wrapResponse(data, meta, links);
+  }
+
   // ---------------- READ ONE ----------------
   async findOne(productId: number): Promise<ApiResponse<Product & { translations: Record<string, { name: string; slug?: string; description?: string }> }>> {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });

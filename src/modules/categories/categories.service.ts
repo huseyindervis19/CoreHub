@@ -41,7 +41,9 @@ export class CategoryService {
     const language = await this.prisma.language.findUnique({ where: { code: langCode } });
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
-    const categories = await this.prisma.category.findMany();
+    const categories = await this.prisma.category.findMany({
+      orderBy: [{ id: 'asc' }],
+    });
     const dataWithTranslation = await Promise.all(
       categories.map(async category => {
         const translations = await this.prisma.dynamicTranslation.findMany({
@@ -89,7 +91,13 @@ export class CategoryService {
     const featured = await this.prisma.category.findMany({ where: { isFeatured: true } });
     const notFeatured = await this.prisma.category.findMany({ where: { isFeatured: false } });
 
-    const selected = [...featured, ...notFeatured].slice(0, 5);
+    const categories = await this.prisma.category.findMany({
+      orderBy: [
+        { isFeatured: 'desc' },
+        { id: 'asc' }
+      ],
+    });
+    const selected = categories.slice(0, 5);
 
     const dataWithTranslation = await Promise.all(
       selected.map(async category => {
