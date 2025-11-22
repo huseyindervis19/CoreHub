@@ -185,3 +185,13 @@ model ProductImage {
 
   Product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
+
+model HomeSlider {
+  id        Int     @id @default(autoincrement())
+  
+  imageUrl  String
+  ctaLink  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
