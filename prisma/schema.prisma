@@ -195,3 +195,12 @@ model HomeSlider {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model aboutUs {
+  id        Int     @id @default(autoincrement())
+
+  imageUrl  String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

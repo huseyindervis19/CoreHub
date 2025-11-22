@@ -17,6 +17,7 @@ import { CategoryModule } from './modules/categories/categories.module';
 import { ProductModule } from './modules/products/products.module';
 import { ProductImageModule } from './modules/product-images/product-images.module';
 import { HomeSliderModule } from './modules/home-slider/home-slider.module';
+import { AboutUsModule } from './modules/about-us/about-us.module';
 
 @Module({
   imports: [
@@ -35,7 +36,8 @@ import { HomeSliderModule } from './modules/home-slider/home-slider.module';
     CategoryModule,
     ProductModule,
     ProductImageModule,
-    HomeSliderModule
+    HomeSliderModule,
+    AboutUsModule
   ],
   controllers: [AppController],
   providers: [AppService],
