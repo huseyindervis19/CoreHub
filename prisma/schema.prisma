@@ -204,3 +204,20 @@ model aboutUs {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum ContactRequestStatus {
+  pending
+  in_progress
+  completed
+}
+
+model ContactRequest {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String
+  status    ContactRequestStatus @default(pending)
+  message   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

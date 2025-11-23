@@ -3,7 +3,7 @@ import { IsString, IsOptional } from 'class-validator';
 export class CreateAboutUsDto {
   @IsOptional()
   @IsString({ message: 'Image URL must be a string' })
-  imageUrl?: string;
+  imageUrl: string;
 
   @IsOptional()
   @IsString()
