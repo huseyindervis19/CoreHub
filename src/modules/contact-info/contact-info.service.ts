@@ -42,23 +42,35 @@ export class ContactInfoService {
   }
 
   // ---------------- GET BY LANGUAGE ----------------
-  async getByLanguage(langCode: string) {
-    const info = await this.prisma.contactInfo.findFirst();
-    if (!info) throw new NotFoundException('Contact Info not found');
+async getByLanguage(langCode: string) {
+  const info = await this.prisma.contactInfo.findFirst();
 
-    const lang = await this.prisma.language.findUnique({ where: { code: langCode } });
-    if (!lang) throw new NotFoundException(`Language '${langCode}' not found`);
+  const lang = await this.prisma.language.findUnique({
+    where: { code: langCode },
+  });
 
-    const translations = await this.prisma.dynamicTranslation.findMany({
-      where: { tableName: 'ContactInfo', rowId: info.id, languageId: lang.id },
-    });
+  const translations = lang
+    ? await this.prisma.dynamicTranslation.findMany({
+        where: {
+          tableName: 'ContactInfo',
+          rowId: info?.id || 0,
+          languageId: lang.id,
+        },
+      })
+    : [];
 
-    const translated = {
-      address: translations.find(t => t.field === 'address')?.content || '',
-    };
+  const translated = {
+    address: translations.find(t => t.field === 'address')?.content || '',
+  };
 
-    return wrapResponse(formatSingle({ ...info, translated }, this.basePath));
-  }
+  const result = {
+    ...(info as any),
+    translated,
+  };
+
+  return wrapResponse(formatSingle(result, this.basePath));
+}
+
 
   // ---------------- UPDATE ----------------
   async update(id: number, langCode: string, dto: UpdateContactInfoDto) {

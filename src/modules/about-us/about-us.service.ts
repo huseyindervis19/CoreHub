@@ -58,20 +58,20 @@ export class AboutUsService {
   // ----------- PUBLIC GET BY LANG -----------
   async getByLanguage(langCode: string) {
     const about = await this.prisma.aboutUs.findFirst();
-    if (!about) throw new NotFoundException('About Us not found');
 
     const lang = await this.prisma.language.findUnique({
       where: { code: langCode },
     });
-    if (!lang) throw new NotFoundException(`Language '${langCode}' not found`);
 
-    const translations = await this.prisma.dynamicTranslation.findMany({
-      where: {
-        tableName: 'AboutUs',
-        rowId: about.id,
-        languageId: lang.id,
-      },
-    });
+    const translations = lang
+      ? await this.prisma.dynamicTranslation.findMany({
+        where: {
+          tableName: 'AboutUs',
+          rowId: about?.id || 0,
+          languageId: lang.id,
+        },
+      })
+      : [];
 
     const translated = {
       story: translations.find(t => t.field === 'story')?.content || '',
@@ -80,7 +80,12 @@ export class AboutUsService {
       values: translations.find(t => t.field === 'values')?.content || '',
     };
 
-    return wrapResponse(formatSingle({ ...about, translated }, this.basePath));
+    const result = {
+      ...(about as any),
+      translated,
+    };
+
+    return wrapResponse(formatSingle(result, this.basePath));
   }
 
   // ----------- UPDATE -----------
@@ -152,7 +157,7 @@ export class AboutUsService {
     try {
       await fs.access(fullPath);
       await fs.unlink(fullPath);
-    } catch {}
+    } catch { }
   }
 
   private async createTranslations(
