@@ -20,6 +20,7 @@ export class ProductService {
           isActive: dto.isActive ?? true,
           isFeatured: dto.isFeatured ?? false,
           categoryId: dto.categoryId,
+          priority: dto.priority ?? 0
         },
       });
 
@@ -46,6 +47,7 @@ export class ProductService {
         stockQuantity: true,
         isActive: true,
         isFeatured: true,
+        priority: true,
         createdAt: true,
         updatedAt: true,
         Images: {
@@ -54,6 +56,7 @@ export class ProductService {
           take: 1,
         },
       },
+      orderBy: [{ priority: 'asc' },{ createdAt: 'asc' }],
     });
 
     const dataWithTranslation = await Promise.all(
@@ -94,6 +97,7 @@ export class ProductService {
         stockQuantity: true,
         isActive: true,
         isFeatured: true,
+        priority:true,
         createdAt: true,
         updatedAt: true,
         Images: {
@@ -101,6 +105,7 @@ export class ProductService {
           select: { url: true }
         },
       },
+      orderBy: [{ priority: 'asc' },{ createdAt: 'asc' }],
     });
 
     const dataWithTranslation = await Promise.all(
@@ -150,6 +155,7 @@ export class ProductService {
         stockQuantity: true,
         isActive: true,
         isFeatured: true,
+        priority:true,
         createdAt: true,
         updatedAt: true,
         Images: {
@@ -198,7 +204,7 @@ export class ProductService {
 
     const products = await this.prisma.product.findMany({
       orderBy: [
-        { isFeatured: 'desc' },
+        { priority: 'asc' },
         { id: 'asc' }
       ],
       take: 5,
@@ -245,6 +251,7 @@ export class ProductService {
       data: {
         stockQuantity: dto.stockQuantity ?? product.stockQuantity,
         isActive: dto.isActive ?? product.isActive,
+        priority: dto.priority ?? product.priority,
         isFeatured: dto.isFeatured ?? product.isFeatured,
         categoryId: dto.categoryId ?? product.categoryId,
       },

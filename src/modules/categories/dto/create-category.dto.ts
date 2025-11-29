@@ -16,8 +16,6 @@ export class CreateCategoryDto {
   @IsString({ message: 'Image URL must be a string' })
   imageUrl?: string;
 
-  @IsOptional()
-  @IsBoolean({ message: 'isFeatured must be a boolean' })
-@Transform(({ obj }) => obj.isFeatured === 'true')
-  isFeatured?: boolean;
+  @IsNotEmpty()
+  priority: number;
 }

@@ -153,8 +153,7 @@ model Category {
   id        Int     @id @default(autoincrement())
   
   imageUrl  String?
-  isFeatured Boolean  @default(false)
-
+  priority  Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   Products  Product[]
@@ -166,7 +165,7 @@ model Product {
   stockQuantity  Int       @default(0)
   isActive       Boolean   @default(true)
   isFeatured     Boolean   @default(false)
-
+  priority       Int @default(0)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

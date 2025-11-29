@@ -26,7 +26,7 @@ export class CategoryService {
 
     const category = await this.prisma.$transaction(async tx => {
       const cat = await tx.category.create({
-        data: { imageUrl, isFeatured: dto.isFeatured ?? false },
+        data: { imageUrl, priority: dto.priority ?? 0 },
       });
       await this.createDynamicTranslations(cat.id, dto.name, dto.description);
       return cat;
@@ -42,7 +42,7 @@ export class CategoryService {
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
     const categories = await this.prisma.category.findMany({
-      orderBy: [{ id: 'asc' }],
+      orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     });
     const dataWithTranslation = await Promise.all(
       categories.map(async category => {
@@ -88,12 +88,10 @@ export class CategoryService {
     const language = await this.prisma.language.findUnique({ where: { code: langCode } });
     if (!language) throw new NotFoundException(`Language '${langCode}' not found`);
 
-    const featured = await this.prisma.category.findMany({ where: { isFeatured: true } });
-    const notFeatured = await this.prisma.category.findMany({ where: { isFeatured: false } });
 
     const categories = await this.prisma.category.findMany({
       orderBy: [
-        { isFeatured: 'desc' },
+        { priority: 'asc' },
         { id: 'asc' }
       ],
     });
@@ -132,12 +130,15 @@ export class CategoryService {
       imageUrl = await this.saveUploadedFile(file);
     }
 
+    const data: any = { imageUrl };
+
+    if (dto.priority !== undefined) {
+      data.priority = dto.priority;
+    }
+
     const updatedCategory = await this.prisma.category.update({
       where: { id: categoryId },
-      data: {
-        imageUrl,
-        isFeatured: dto.isFeatured ?? category.isFeatured,
-      },
+      data,
     });
 
     if (dto.name !== undefined) {

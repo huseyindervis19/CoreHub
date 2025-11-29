@@ -31,4 +31,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsInt({ message: 'categoryId must be an integer' })
   categoryId?: number;
+
+  @IsNotEmpty()
+  priority: number;
 }
