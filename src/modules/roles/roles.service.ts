@@ -7,19 +7,7 @@ import { wrapResponse, formatSingle, formatList, ApiResponse } from '../../commo
 export class RoleService {
   private readonly basePath = '/roles';
 
-  constructor(private readonly prisma: PrismaService) {}
-
-  // ---------------- Helper to select role fields without isDeveloper ----------------
-  private selectRoleFields() {
-    return {
-      id: true,
-      name: true,
-      description: true,
-      createdAt: true,
-      updatedAt: true,
-    };
-  }
-
+  constructor(private readonly prisma: PrismaService) { }
   // ---------------- CREATE ----------------
   async create(data: Prisma.RoleCreateInput): Promise<ApiResponse<Role>> {
     const role = await this.prisma.role.create({ data });
@@ -28,20 +16,14 @@ export class RoleService {
 
   // ---------------- READ ALL ----------------
   async findAll(): Promise<ApiResponse<Omit<Role, 'isDeveloper'>[]>> {
-    const roles = await this.prisma.role.findMany({
-      where: { isDeveloper: false },
-      select: this.selectRoleFields(),
-    });
+    const roles = await this.prisma.role.findMany();
     const { data, meta, links } = formatList(roles, this.basePath);
     return wrapResponse(data, meta, links);
   }
 
   // ---------------- READ ONE ----------------
   async findOne(id: number): Promise<ApiResponse<Omit<Role, 'isDeveloper'>>> {
-    const role = await this.prisma.role.findUnique({
-      where: { id },
-      select: this.selectRoleFields(),
-    });
+    const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) throw new NotFoundException(`Role with id ${id} not found`);
     return wrapResponse(formatSingle(role, this.basePath));
   }
@@ -49,18 +31,15 @@ export class RoleService {
   // ---------------- UPDATE ----------------
   async update(id: number, data: Prisma.RoleUpdateInput): Promise<ApiResponse<Omit<Role, 'isDeveloper'>>> {
     const role = await this.prisma.role.update({
-      where: { id },
-      data,
-      select: this.selectRoleFields(),
+      where: { id }, data
     });
     return wrapResponse(formatSingle(role, this.basePath));
   }
 
   // ---------------- DELETE ----------------
-  async remove(id: number): Promise<ApiResponse<Omit<Role, 'isDeveloper'>>> {
+  async remove(id: number): Promise<ApiResponse<Role>> {
     const role = await this.prisma.role.delete({
-      where: { id },
-      select: this.selectRoleFields(),
+      where: { id }
     });
     return wrapResponse(formatSingle(role, this.basePath));
   }
