@@ -60,23 +60,14 @@ export class UserService {
       },
     });
 
-    const filteredUsers = users.filter(user =>
-      !user.userRoles.some(ur => ur.role.isDeveloper)
-    );
 
-    const sanitizedUsers = filteredUsers.map(user => {
+    const sanitizedUsers = users.map(user => {
       const { password, ...restUser } = user;
       return {
         ...restUser,
         userRoles: user.userRoles.map(ur => ({
           ...ur,
-          role: {
-            id: ur.role.id,
-            name: ur.role.name,
-            description: ur.role.description,
-            createdAt: ur.role.createdAt,
-            updatedAt: ur.role.updatedAt,
-          },
+          role: ur.role,
         })),
       };
     });
